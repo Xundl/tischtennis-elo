@@ -93,16 +93,6 @@ table tr td {
 <body>
   <h1>Tischtennis Elo Ranking</h1>
 
-  {% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <ul style="color:red; list-style:none;">
-      {% for msg in messages %}
-        <li>{{ msg }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  {% endwith %}
-
   <!-- Spieler hinzufügen -->
   <h2>Spieler hinzufügen</h2>
   <form action="/add_player" method="post" id="addPlayerForm">
@@ -131,10 +121,10 @@ table tr td {
   <h2>Spiel eintragen</h2>
   <form action="/add_game" method="post">
     <input list="players" type="text" name="p1_name" placeholder="Spieler 1" required>
-    <input type="number" name="p1_score" placeholder="Punkte Spieler 1" required>
+    <input type="number" name="p1_score" placeholder="Punkte Spieler 1" required min="0">
     <br>
     <input list="players" type="text" name="p2_name" placeholder="Spieler 2" required>
-    <input type="number" name="p2_score" placeholder="Punkte Spieler 2" required>
+    <input type="number" name="p2_score" placeholder="Punkte Spieler 2" required min="0">
     <button type="submit">Eintragen</button>
   </form>
 
@@ -143,6 +133,16 @@ table tr td {
       <option value="{{ p.name }}">
     {% endfor %}
   </datalist>
+
+ {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul style="color:red; list-style:none;">
+      {% for msg in messages %}
+        <li>{{ msg }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% endwith %}
 
   <!-- Top 3 -->
   <h2>Top 3 Spieler</h2>
@@ -159,6 +159,17 @@ table tr td {
   <a href="/leaderboard" style="display:inline-block; margin-top:10px; color:#3b2fc0; font-weight:bold; text-decoration:none;">
     Vollständiges Leaderboard anzeigen
   </a>
+  <br>
+  <br>
+  <a href="/history"
+   style="display:inline-block;
+          margin-top:5px;
+          color:#3b2fc0;
+          text-decoration:none;
+          font-weight:bold;">
+   Match History
+</a>
+
 
   <!-- Spieler + Legende nebeneinander -->
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:40px; margin-top:30px;">

@@ -40,6 +40,10 @@ class Game(db.Model):
     p2_id = db.Column(db.Integer, db.ForeignKey('player.id'))
     p1_score = db.Column(db.Integer)
     p2_score = db.Column(db.Integer)
+    p1_change = db.Column(db.Float)
+    p2_change = db.Column(db.Float)
+    p1_elo_after = db.Column(db.Float)
+    p2_elo_after = db.Column(db.Float)
 
 # ELO Berechnung (klassisch nach ELO-Formel)
 # ELO Berechnung (mit Berücksichtigung des Punkteunterschieds)
@@ -58,11 +62,22 @@ def update_elo(winner, loser, winner_score=None, loser_score=None, k=32):
 
     # Neue Elo-Werte berechnen
     delta = k * (1 - expected_win) * diff_factor
-    winner.elo += delta
-    loser.elo -= delta
+    delta = int(round(delta))
+    
+    new_winner_elo = winner.elo + delta
+    new_loser_elo = loser.elo - delta
 
-    # Werte begrenzen
-    winner.elo = min(max(winner.elo, 100), 1000)
-    loser.elo = min(max(loser.elo, 100), 1000)
+    # Wenn Gewinner capped ist, wird nur sein Wert gedeckelt – der Gegner verliert trotzdem Elo
+    if new_winner_elo > 1000:
+        winner.elo = 1000
+    else:
+        winner.elo = new_winner_elo
+
+    if new_loser_elo < 100:
+        loser.elo = 100
+    else:
+        loser.elo = new_loser_elo
 
     db.session.commit()
+
+    return delta, -delta
