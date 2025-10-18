@@ -88,6 +88,16 @@ table tr td {
     /* Abstände & Formatierungen */
     li { margin: 6px 0; padding: 10px; border-radius: 8px; }
     .rank { font-style: italic; margin-left: 4px; }
+
+    a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
   </style>
 </head>
 <body>
@@ -150,7 +160,9 @@ table tr td {
     {% for p in players[:3] %}
       {% set rank_class = p.rank_name.split(' ')[0].lower() %}
       <li class="{{ rank_class }}">
-        <b>{{ p.name }}</b> – Elo: {{ "%.0f"|format(p.elo) }} - <span class="rank">{{ p.rank_name }}</span>
+        <b><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></b>
+         – Elo: {{ "%.0f"|format(p.elo) }} - <span class="rank">{{ p.rank_name }}</span>
+
         <a href="/edit_player/{{ p.id }}" style="margin-left:10px; font-size:0.9em;">EDIT</a>
       </li>
     {% endfor %}
@@ -177,7 +189,7 @@ table tr td {
       <h3>Alle Spieler</h3>
       <ul>
         {% for p in players|sort(attribute='name') %}
-          <li>{{ p.name }}</li>
+          <li><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></li>
         {% endfor %}
       </ul>
     </div>

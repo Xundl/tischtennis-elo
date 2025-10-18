@@ -1,5 +1,7 @@
 import re
 from flask import Flask, render_template, request, redirect, flash, url_for
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from models import db, Player, Game, update_elo
 
 # Flask-App initialisieren
@@ -82,45 +84,34 @@ def add_player():
 def add_game():
     p1_name = request.form["p1_name"].strip()
     p2_name = request.form["p2_name"].strip()
+    p1_score = int(request.form["p1_score"])
+    p2_score = int(request.form["p2_score"])
 
-    # Spieler-Namen case-insensitive suchen
-    p1 = Player.query.filter(db.func.lower(Player.name) == p1_name.lower()).first()
-    p2 = Player.query.filter(db.func.lower(Player.name) == p2_name.lower()).first()
+    p1 = Player.query.filter(func.lower(Player.name) == p1_name.lower()).first()
+    p2 = Player.query.filter(func.lower(Player.name) == p2_name.lower()).first()
 
     if not p1 or not p2:
-        flash("Spieler nicht gefunden.")
+        flash("Einer der Spieler wurde nicht gefunden.")
         return redirect(url_for("index"))
-
     if p1.id == p2.id:
         flash("Ein Spieler kann nicht gegen sich selbst spielen.")
         return redirect(url_for("index"))
 
-    try:
-        p1_score = int(request.form["p1_score"])
-        p2_score = int(request.form["p2_score"])
-        if p1_score < 0 or p2_score < 0:
-            flash("Negative Punkte sind nicht erlaubt.")
-            return redirect(url_for("index"))
-    except ValueError:
-        flash("Ungültige Punkteangabe.")
-        return redirect(url_for("index"))
-
-    # Gewinner & Verlierer bestimmen
-    if p1_score == p2_score:
-        flash("Unentschieden ist nicht erlaubt.")
-        return redirect(url_for("index"))
-
+    # Gewinner/Verlierer bestimmen
     if p1_score > p2_score:
         winner, loser = p1, p2
-        w_score, l_score = p1_score, p2_score
-    else:
+        winner_score, loser_score = p1_score, p2_score
+    elif p2_score > p1_score:
         winner, loser = p2, p1
-        w_score, l_score = p2_score, p1_score
+        winner_score, loser_score = p2_score, p1_score
+    else:
+        flash("Unentschieden sind nicht erlaubt.")
+        return redirect(url_for("index"))
 
-    # Elo berechnen und Änderungen erhalten
-    win_change, lose_change = update_elo(winner, loser, w_score, l_score)
+    # Elo aktualisieren
+    win_change, lose_change, bonus, winstreak = update_elo(winner, loser, winner_score, loser_score)
 
-    # Neues Spiel speichern
+    # Spiel speichern
     game = Game(
         p1_id=p1.id,
         p2_id=p2.id,
@@ -131,12 +122,12 @@ def add_game():
         p1_elo_after=p1.elo,
         p2_elo_after=p2.elo,
     )
-
     db.session.add(game)
     db.session.commit()
 
-    # Flash-Nachricht direkt unter dem Formular
-    flash(f"{winner.name} +{win_change} | {loser.name} {lose_change}")
+    # Flash-Nachricht mit Winstreak Info
+    bonus_text = f" (+{bonus} Winstreak: {winstreak} 🔥)" if bonus > 0 else ""
+    flash(f"{winner.name} gewinnt! +{win_change}{bonus_text} | {loser.name} verliert {abs(lose_change)} Elo")
 
     return redirect(url_for("index"))
 
@@ -154,7 +145,6 @@ def leaderboard():
             p.rank_name = p.get_rank()
 
     return render_template('leaderboard.html', players=players)
-
 
 @app.route("/edit_player/<int:player_id>", methods=["GET", "POST"])
 def edit_player(player_id):
@@ -219,6 +209,46 @@ def history():
     games = Game.query.order_by(Game.id.desc()).limit(20).all()
     players = {p.id: p.name for p in Player.query.all()}
     return render_template("history.html", games=games, players=players)
+
+@app.route("/player/<int:player_id>")
+def player_profile(player_id):
+    player = Player.query.get_or_404(player_id)
+
+    # Alle Spiele mit diesem Spieler
+    games = Game.query.filter(
+        (Game.p1_id == player.id) | (Game.p2_id == player.id)
+    ).order_by(Game.id.desc()).limit(20).all()
+
+    # Win/Loss zählen
+    wins = 0
+    losses = 0
+    for g in games:
+        if (g.p1_id == player.id and g.p1_score > g.p2_score) or \
+           (g.p2_id == player.id and g.p2_score > g.p1_score):
+            wins += 1
+        else:
+            losses += 1
+
+    total = wins + losses
+    winrate = round((wins / total * 100), 1) if total > 0 else 0
+
+    # Rank berechnen
+    top1 = player.elo == db.session.query(db.func.max(Player.elo)).scalar()
+    rank = player.get_rank(top1=top1)
+
+    # Player-Lookup für Gegnernamen
+    players = {p.id: p.name for p in Player.query.all()}
+
+    return render_template(
+        "player.html",
+        player=player,
+        games=games,
+        players=players,
+        wins=wins,
+        losses=losses,
+        winrate=winrate,
+        rank=rank,
+    )
 
 
 if __name__ == '__main__':

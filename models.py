@@ -6,6 +6,7 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     elo = db.Column(db.Float, default=300)
+    winstreak = db.Column(db.Integer, default=0)
 
     def get_rank(self, top1=False):
         if top1:
@@ -45,39 +46,41 @@ class Game(db.Model):
     p1_elo_after = db.Column(db.Float)
     p2_elo_after = db.Column(db.Float)
 
-# ELO Berechnung (klassisch nach ELO-Formel)
-# ELO Berechnung (mit Berücksichtigung des Punkteunterschieds)
 def update_elo(winner, loser, winner_score=None, loser_score=None, k=32):
-    # Erwartungswert basierend auf Elo
+    # Erwartungswert des Gewinners
     expected_win = 1 / (1 + 10 ** ((loser.elo - winner.elo) / 400))
 
-    # Falls Scores übergeben wurden → Punkteabstand in Faktor umwandeln (0.5–1.5)
+    # Punktedifferenz-Faktor (leicht höhere Belohnung bei klaren Siegen)
     if winner_score is not None and loser_score is not None:
         diff = abs(winner_score - loser_score)
-        # Faktor skaliert den K-Wert leicht, aber bleibt fair
-        # z.B. bei 11:9 (diff=2) → 1.0, bei 11:1 (diff=10) → ca. 1.4
-        diff_factor = 1 + (min(diff, 10) / 20)  # max +50 % Wirkung
+        diff_factor = 1 + (min(diff, 10) / 20)
     else:
         diff_factor = 1.0
 
-    # Neue Elo-Werte berechnen
+    # Grund-Delta
     delta = k * (1 - expected_win) * diff_factor
     delta = int(round(delta))
-    
-    new_winner_elo = winner.elo + delta
-    new_loser_elo = loser.elo - delta
 
-    # Wenn Gewinner capped ist, wird nur sein Wert gedeckelt – der Gegner verliert trotzdem Elo
-    if new_winner_elo > 1000:
-        winner.elo = 1000
-    else:
-        winner.elo = new_winner_elo
+    # 🔥 Winstreak-Bonus: ab 3 Siegen in Folge +5 Punkte
+    bonus = 5 if winner.winstreak >= 2 else 0  # also ab 3. Sieg
+    delta_with_bonus = delta + bonus
 
-    if new_loser_elo < 100:
-        loser.elo = 100
-    else:
-        loser.elo = new_loser_elo
+    # Gewinner bekommt vollen Gewinn
+    winner_new_elo = winner.elo + delta_with_bonus
+
+    # Verlierer verliert nur 75 %
+    loser_delta = int(round(delta * 0.75))
+    loser_new_elo = loser.elo - loser_delta
+
+    # Elo-Caps
+    winner.elo = min(1000, winner_new_elo)
+    loser.elo = max(100, loser_new_elo)
+
+    # 🔁 Winstreak aktualisieren
+    winner.winstreak += 1
+    loser.winstreak = 0
 
     db.session.commit()
 
-    return delta, -delta
+    # Rückgabe: Änderungen + Bonus-Info
+    return delta_with_bonus, -loser_delta, bonus, winner.winstreak
