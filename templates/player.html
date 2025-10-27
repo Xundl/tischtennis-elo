@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ player.name }} – Profil</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background:#f5f5f5; }
+    h1 { color:#222; }
+    .card {
+      background:white;
+      padding:20px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      width:350px;
+      margin-bottom:30px;
+    }
+    .stat { margin:6px 0; }
+    a { color:#3b2fc0; text-decoration:none; font-weight:bold; }
+
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { padding:8px 12px; border-bottom:1px solid #ccc; text-align:left; }
+    tr:hover { background:#eaeaea; }
+
+    .plus { color:green; font-weight:bold; }
+    .minus { color:red; font-weight:bold; }
+    .elo { color:#555; font-size:0.9em; }
+
+    /* Rank-Stile für Spielername im Profil */
+.rank-banner {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 1.5em;
+  color: #fff;
+  text-shadow: 1px 1px 2px #000;
+  margin-bottom: 20px;
+}
+
+/* Papier */
+.rank-banner.papier {
+  background: #e0e0e0;
+  color: #222;
+  text-shadow: none;
+}
+
+/* Plastik */
+.rank-banner.plastik {
+  background: #d0f0ff;
+  color: #004466;
+}
+
+/* Holz */
+.rank-banner.holz {
+  background: #deb887;
+  color: #4b2e05;
+}
+
+/* Metall */
+.rank-banner.metall {
+  background: linear-gradient(90deg,#bbb,#eee);
+  color: #222;
+}
+
+/* Pfarrer – Regenbogen */
+.rank-banner.pfarrer {
+  background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+/* Familie Yarak – schimmerndes Grün */
+.rank-banner.familie {
+  background: linear-gradient(90deg,#003300,#006600,#009933,#00cc66,#003300);
+  background-size: 300% 300%;
+  color: #e6ffe6;
+  font-weight: bold;
+  border: 3px solid #00cc66;
+  text-shadow: 0 0 6px rgba(0,255,128,.8), 0 0 12px rgba(0,200,100,.6);
+  animation: shimmerGreen 5s ease-in-out infinite;
+}
+
+/* Karl Jindraks Doppelpartner – goldener Glow */
+.rank-banner.karl {
+  background: linear-gradient(120deg,#fff8b0,#ffd700,#fff2cc,#ffdf80,#ffd700);
+  background-size:300% 300%;
+  color:#000;
+  font-weight:bold;
+  border:3px solid #ffd700;
+  text-shadow:0 0 5px rgba(255,215,0,.8), 0 0 15px rgba(255,255,150,.8);
+  animation: goldGlow 4s ease-in-out infinite;
+}
+
+@keyframes shimmerGreen {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes goldGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* --- MOBILE STYLING --- */
+@media (max-width: 768px) {
+  body {
+    margin: 15px;
+    font-size: 16px;
+  }
+
+  h1, h2, h3 {
+    font-size: 1.2em;
+    text-align: center;
+  }
+
+  form input, form button {
+    width: 100%;
+    margin: 5px 0;
+    font-size: 1em;
+    padding: 10px;
+  }
+
+  ul li, table {
+    font-size: 0.95em;
+  }
+
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 8px;
+  }
+
+  td, th {
+    padding: 6px;
+  }
+
+  a {
+    display: inline-block;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* Buttons schöner für Touch */
+  button {
+    background-color: #3b2fc0;
+    color: white;
+    border: none;
+    border-radius: 6px;
+  }
+
+  button:hover {
+    background-color: #2a1fa0;
+  }
+}
+  </style>
+</head>
+<body>
+  <a href="/">⬅ Zurück</a>
+  {% set rank_class = rank.split(' ')[0].lower() %}
+<h1>
+  <span class="rank-banner {{ rank_class }}">{{ player.name }}</span>
+</h1>
+
+  <div class="card">
+    <div class="stat"><b>Elo:</b> {{ "%.0f"|format(player.elo) }}</div>
+    <div class="stat"><b>Rank:</b> {{ rank }}</div>
+    <div class="stat"><b>Win/Loss:</b> {{ wins }}W / {{ losses }}L</div>
+    <div class="stat"><b>Winrate:</b> {{ winrate }}%</div>
+    <div class="stat"><b>Winstreak:</b> {{ player.winstreak }}</div>
+  </div>
+
+  <h2>Letzte 20 Spiele</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Spieler</th>
+        <th>Gegner</th>
+        <th>Ergebnis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in games %}
+        {% set is_p1 = g.p1_id == player.id %}
+        {% set my_score = g.p1_score if is_p1 else g.p2_score %}
+        {% set opp_score = g.p2_score if is_p1 else g.p1_score %}
+        {% set opp_id = g.p2_id if is_p1 else g.p1_id %}
+        {% set my_change = g.p1_change if is_p1 else g.p2_change %}
+        {% set my_elo = g.p1_elo_after if is_p1 else g.p2_elo_after %}
+        {% set opp_change = g.p2_change if is_p1 else g.p1_change %}
+        {% set opp_elo = g.p2_elo_after if is_p1 else g.p1_elo_after %}
+
+        <tr>
+          <td>
+            {{ player.name }}
+            <span class="{{ 'plus' if my_change > 0 else 'minus' }}">
+              ({{ '+' if my_change > 0 else '' }}{{ my_change|int }})
+            </span>
+            <div class="elo">Elo nach Spiel: {{ my_elo|int }}</div>
+          </td>
+          <td>
+            <a href="{{ url_for('player_profile', player_id=opp_id) }}">{{ players[opp_id] }}</a>
+            <span class="{{ 'plus' if opp_change > 0 else 'minus' }}">
+              ({{ '+' if opp_change > 0 else '' }}{{ opp_change|int }})
+            </span>
+            <div class="elo">Elo nach Spiel: {{ opp_elo|int }}</div>
+          </td>
+          <td>{{ my_score }} : {{ opp_score }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

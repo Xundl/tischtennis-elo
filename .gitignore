@@ -1,0 +1,14 @@
+# Python / venv
+venv/
+__pycache__/
+*.pyc
+
+# Lokale Datenbanken / Dateien
+*.sqlite
+*.db
+elo.db
+
+# Sonstiges
+.env
+.env.*
+.DS_Store
