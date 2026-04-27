@@ -79,13 +79,11 @@ def add_player():
     flash(f"✅ Spieler '{name}' wurde hinzugefügt")
     return redirect('/')
 
-# Spiel hinzufügen
 @app.route("/add_game", methods=["POST"])
 def add_game():
     p1_name = request.form["p1_name"].strip()
     p2_name = request.form["p2_name"].strip()
-    p1_score = int(request.form["p1_score"])
-    p2_score = int(request.form["p2_score"])
+    series_type = int(request.form.get("series_type", 1))
 
     p1 = Player.query.filter(func.lower(Player.name) == p1_name.lower()).first()
     p2 = Player.query.filter(func.lower(Player.name) == p2_name.lower()).first()
@@ -97,38 +95,76 @@ def add_game():
         flash("Ein Spieler kann nicht gegen sich selbst spielen.")
         return redirect(url_for("index"))
 
-    # Gewinner/Verlierer bestimmen
-    if p1_score > p2_score:
-        winner, loser = p1, p2
-        winner_score, loser_score = p1_score, p2_score
-    elif p2_score > p1_score:
-        winner, loser = p2, p1
-        winner_score, loser_score = p2_score, p1_score
+    if series_type == 1:
+        # Einzelspiel wie bisher
+        p1_score = int(request.form["p1_score"])
+        p2_score = int(request.form["p2_score"])
+        series_p1_wins = series_p2_wins = None
+
+        if p1_score == p2_score:
+            flash("Unentschieden sind nicht erlaubt.")
+            return redirect(url_for("index"))
+
+        if p1_score > p2_score:
+            winner, loser = p1, p2
+            winner_score, loser_score = p1_score, p2_score
+        else:
+            winner, loser = p2, p1
+            winner_score, loser_score = p2_score, p1_score
+
+        win_change, lose_change, bonus, winstreak = update_elo(
+            winner, loser, winner_score, loser_score, series_type=1
+        )
     else:
-        flash("Unentschieden sind nicht erlaubt.")
-        return redirect(url_for("index"))
+        # Best of Series
+        needed = (series_type // 2) + 1  # Gewinne zum Sieg: BO3→2, BO5→3, BO7→4
+        p1_wins = int(request.form["p1_wins"])
+        p2_wins = int(request.form["p2_wins"])
 
-    # Elo aktualisieren
-    win_change, lose_change, bonus, winstreak = update_elo(winner, loser, winner_score, loser_score)
+        # Validierung
+        if p1_wins == p2_wins:
+            flash("Unentschieden sind nicht erlaubt.")
+            return redirect(url_for("index"))
+        if max(p1_wins, p2_wins) != needed:
+            flash(f"Ungültiges Ergebnis für Best of {series_type} (Sieger braucht {needed} Wins).")
+            return redirect(url_for("index"))
 
-    # Spiel speichern
+        p1_score = p2_score = None
+        series_p1_wins, series_p2_wins = p1_wins, p2_wins
+
+        if p1_wins > p2_wins:
+            winner, loser = p1, p2
+            sw, lw = p1_wins, p2_wins
+        else:
+            winner, loser = p2, p1
+            sw, lw = p2_wins, p1_wins
+
+        win_change, lose_change, bonus, winstreak = update_elo(
+            winner, loser,
+            series_type=series_type,
+            series_winner_wins=sw,
+            series_loser_wins=lw
+        )
+        p1_score = p1_wins
+        p2_score = p2_wins
+
     game = Game(
-        p1_id=p1.id,
-        p2_id=p2.id,
-        p1_score=p1_score,
-        p2_score=p2_score,
+        p1_id=p1.id, p2_id=p2.id,
+        p1_score=p1_score, p2_score=p2_score,
         p1_change=win_change if winner == p1 else lose_change,
         p2_change=lose_change if winner == p1 else win_change,
-        p1_elo_after=p1.elo,
-        p2_elo_after=p2.elo,
+        p1_elo_after=p1.elo, p2_elo_after=p2.elo,
+        series_type=series_type,
+        series_p1_wins=series_p1_wins,
+        series_p2_wins=series_p2_wins,
     )
     db.session.add(game)
     db.session.commit()
 
-    # Flash-Nachricht mit Winstreak Info
-    bonus_text = f" (+{bonus} Winstreak: {winstreak} 🔥)" if bonus > 0 else ""
-    flash(f"{winner.name} gewinnt! +{win_change}{bonus_text} | {loser.name} verliert {abs(lose_change)} Elo")
-
+    series_label = f"Best of {series_type}" if series_type > 1 else "Single Game"
+    bonus_text = f" (+{bonus} Bonus 🔥)" if bonus > 0 else ""
+   # in add_game, die letzte flash-Zeile ersetzen:
+    flash(f"[{series_label}] {winner.name} gewinnt! +{win_change}{bonus_text} | {loser.name} verliert {abs(lose_change)} Elo", "success")
     return redirect(url_for("index"))
 
 

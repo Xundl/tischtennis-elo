@@ -121,43 +121,56 @@
 
   <table>
     <thead>
-      <tr>
-        <th>Spieler&nbsp;1</th>
-        <th>Spieler&nbsp;2</th>
-        <th>Ergebnis</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for g in games %}
-        {% set p1_change = g.p1_change or 0 %}
-        {% set p2_change = g.p2_change or 0 %}
-        <tr>
-          <td>
-            <strong>{{ players[g.p1_id] }}</strong>
-            {% if p1_change != 0 %}
-              <span class="{{ 'plus' if p1_change > 0 else 'minus' }}">
-                {{ '+' if p1_change > 0 else '' }}{{ p1_change|int }}
-              </span>
-            {% endif %}
-            <div class="elo">Elo nach Spiel: {{ g.p1_elo_after|int }}</div>
-          </td>
-
-          <td>
-            <strong>{{ players[g.p2_id] }}</strong>
-            {% if p2_change != 0 %}
-              <span class="{{ 'plus' if p2_change > 0 else 'minus' }}">
-                {{ '+' if p2_change > 0 else '' }}{{ p2_change|int }}
-              </span>
-            {% endif %}
-            <div class="elo">Elo nach Spiel: {{ g.p2_elo_after|int }}</div>
-          </td>
-
-          <td>
-            <strong>{{ g.p1_score }} : {{ g.p2_score }}</strong>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
+  <tr>
+    <th>Spieler&nbsp;1</th>
+    <th>Spieler&nbsp;2</th>
+    <th>Ergebnis</th>
+    <th>Format</th>
+  </tr>
+</thead>
+<tbody>
+  {% for g in games %}
+    {% set p1_change = g.p1_change or 0 %}
+    {% set p2_change = g.p2_change or 0 %}
+    {% set is_series = g.series_type and g.series_type > 1 %}
+    <tr>
+      <td>
+        <strong>{{ players[g.p1_id] }}</strong>
+        {% if p1_change != 0 %}
+          <span class="{{ 'plus' if p1_change > 0 else 'minus' }}">
+            {{ '+' if p1_change > 0 else '' }}{{ p1_change|int }}
+          </span>
+        {% endif %}
+        <div class="elo">Elo nach Spiel: {{ g.p1_elo_after|int }}</div>
+      </td>
+      <td>
+        <strong>{{ players[g.p2_id] }}</strong>
+        {% if p2_change != 0 %}
+          <span class="{{ 'plus' if p2_change > 0 else 'minus' }}">
+            {{ '+' if p2_change > 0 else '' }}{{ p2_change|int }}
+          </span>
+        {% endif %}
+        <div class="elo">Elo nach Spiel: {{ g.p2_elo_after|int }}</div>
+      </td>
+      <td>
+        {% if is_series %}
+          <strong>{{ g.series_p1_wins }} : {{ g.series_p2_wins }}</strong>
+        {% else %}
+          <strong>{{ g.p1_score }} : {{ g.p2_score }}</strong>
+        {% endif %}
+      </td>
+      <td>
+        {% if is_series %}
+          <span style="background:#3b2fc0; color:white; padding:2px 7px; border-radius:5px; font-size:0.85em;">
+            BO{{ g.series_type }}
+          </span>
+        {% else %}
+          <span style="color:#888; font-size:0.85em;">Single</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+</tbody>
   </table>
 </body>
 </html>

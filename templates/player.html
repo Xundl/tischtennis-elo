@@ -176,42 +176,60 @@
   <h2>Letzte 20 Spiele</h2>
   <table>
     <thead>
-      <tr>
-        <th>Spieler</th>
-        <th>Gegner</th>
-        <th>Ergebnis</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for g in games %}
-        {% set is_p1 = g.p1_id == player.id %}
-        {% set my_score = g.p1_score if is_p1 else g.p2_score %}
-        {% set opp_score = g.p2_score if is_p1 else g.p1_score %}
-        {% set opp_id = g.p2_id if is_p1 else g.p1_id %}
-        {% set my_change = g.p1_change if is_p1 else g.p2_change %}
-        {% set my_elo = g.p1_elo_after if is_p1 else g.p2_elo_after %}
-        {% set opp_change = g.p2_change if is_p1 else g.p1_change %}
-        {% set opp_elo = g.p2_elo_after if is_p1 else g.p1_elo_after %}
+  <tr>
+    <th>Spieler</th>
+    <th>Gegner</th>
+    <th>Ergebnis</th>
+    <th>Format</th>
+  </tr>
+</thead>
+<tbody>
+  {% for g in games %}
+    {% set is_p1 = g.p1_id == player.id %}
+    {% set is_series = g.series_type and g.series_type > 1 %}
 
-        <tr>
-          <td>
-            {{ player.name }}
-            <span class="{{ 'plus' if my_change > 0 else 'minus' }}">
-              ({{ '+' if my_change > 0 else '' }}{{ my_change|int }})
-            </span>
-            <div class="elo">Elo nach Spiel: {{ my_elo|int }}</div>
-          </td>
-          <td>
-            <a href="{{ url_for('player_profile', player_id=opp_id) }}">{{ players[opp_id] }}</a>
-            <span class="{{ 'plus' if opp_change > 0 else 'minus' }}">
-              ({{ '+' if opp_change > 0 else '' }}{{ opp_change|int }})
-            </span>
-            <div class="elo">Elo nach Spiel: {{ opp_elo|int }}</div>
-          </td>
-          <td>{{ my_score }} : {{ opp_score }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
+    {% if is_series %}
+      {% set my_score  = g.series_p1_wins if is_p1 else g.series_p2_wins %}
+      {% set opp_score = g.series_p2_wins if is_p1 else g.series_p1_wins %}
+    {% else %}
+      {% set my_score  = g.p1_score if is_p1 else g.p2_score %}
+      {% set opp_score = g.p2_score if is_p1 else g.p1_score %}
+    {% endif %}
+
+    {% set opp_id    = g.p2_id if is_p1 else g.p1_id %}
+    {% set my_change = g.p1_change if is_p1 else g.p2_change %}
+    {% set my_elo    = g.p1_elo_after if is_p1 else g.p2_elo_after %}
+    {% set opp_change = g.p2_change if is_p1 else g.p1_change %}
+    {% set opp_elo   = g.p2_elo_after if is_p1 else g.p1_elo_after %}
+
+    <tr>
+      <td>
+        {{ player.name }}
+        <span class="{{ 'plus' if my_change > 0 else 'minus' }}">
+          ({{ '+' if my_change > 0 else '' }}{{ my_change|int }})
+        </span>
+        <div class="elo">Elo nach Spiel: {{ my_elo|int }}</div>
+      </td>
+      <td>
+        <a href="{{ url_for('player_profile', player_id=opp_id) }}">{{ players[opp_id] }}</a>
+        <span class="{{ 'plus' if opp_change > 0 else 'minus' }}">
+          ({{ '+' if opp_change > 0 else '' }}{{ opp_change|int }})
+        </span>
+        <div class="elo">Elo nach Spiel: {{ opp_elo|int }}</div>
+      </td>
+      <td>{{ my_score }} : {{ opp_score }}</td>
+      <td>
+        {% if is_series %}
+          <span style="background:#3b2fc0; color:white; padding:2px 7px; border-radius:5px; font-size:0.85em;">
+            BO{{ g.series_type }}
+          </span>
+        {% else %}
+          <span style="color:#888; font-size:0.85em;">Single</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+</tbody>
   </table>
 </body>
 </html>
