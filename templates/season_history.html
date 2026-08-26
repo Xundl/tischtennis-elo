@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Season {{ season.number }} Leaderboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    h1 { color: #222; }
+    a { color: #3b2fc0; text-decoration: none; font-weight: bold; }
+    a:hover { text-decoration: underline; }
+
+    table {
+      width: 100%; border-collapse: collapse; background: white;
+      border-radius: 8px; overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-top: 20px;
+    }
+    th { background: #eee; padding: 10px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+
+    .season-nav { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .season-btn {
+      padding: 8px 16px; border-radius: 6px; text-decoration: none;
+      border: 2px solid #3b2fc0; font-weight: bold;
+    }
+    .season-btn.active { background: #3b2fc0; color: white; }
+    .season-btn:not(.active) { background: white; color: #3b2fc0; }
+
+    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+    .tab {
+      padding: 10px 24px; border-radius: 8px 8px 0 0;
+      font-weight: bold; font-size: 1em;
+      text-decoration: none; border: 2px solid #3b2fc0;
+    }
+    .tab.active { background: #3b2fc0; color: white; }
+    .tab:not(.active) { background: white; color: #3b2fc0; }
+
+    /* Rang-Farben für die Tabelle */
+    tr.schlager td { background: linear-gradient(90deg,#1a1a2e,#16213e,#0f3460,#533483,#1a1a2e) !important; color: #fff; font-weight: bold; }
+    tr.karl td { background: linear-gradient(120deg,#fff8b0,#ffd700,#fff2cc,#ffdf80,#ffd700) !important; color: #000; font-weight: bold; }
+    tr.familie td { background: #009933 !important; color: #e6ffe6; font-weight: bold; }
+    tr.pfarrer td { background: linear-gradient(90deg,red,orange,yellow,green,blue,indigo,violet) !important; color: white; font-weight: bold; }
+    tr.metall td { background: linear-gradient(90deg,#bbb,#eee) !important; }
+    tr.holz td { background: #deb887 !important; color: #4b2e05; }
+    tr.plastik td { background: #d0f0ff !important; color: #004466; }
+    tr.papier td { background: #e0e0e0 !important; color: #222; }
+
+    @media (max-width: 768px) {
+      body { margin: 15px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab">🤝 Doppel</a>
+    <a href="/h2h" class="tab">⚔️ H2H</a>
+  </div>
+
+  <h1>🏆 Season {{ season.number }} – Finales Leaderboard</h1>
+  <a href="/">⬅ Zurück zur Startseite</a>
+
+  <div class="season-nav">
+    {% for s in all_seasons %}
+      <a href="/season/{{ s.number }}"
+         class="season-btn {{ 'active' if s.number == season.number else '' }}">
+        Season {{ s.number }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Spieler</th>
+        <th>Finale Elo</th>
+        <th>Rang</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in snapshots %}
+        {% if s.rank_name.startswith('Schlager') %}
+          {% set rank_class = "schlager" %}
+        {% elif s.rank_name == "Unranked" %}
+          {% set rank_class = "" %}
+        {% else %}
+          {% set rank_class = s.rank_name.split(' ')[0].lower() %}
+        {% endif %}
+        <tr class="{{ rank_class }}">
+          <td>{{ loop.index }}</td>
+          <td><strong>{{ s.player_name }}</strong></td>
+          <td>{{ s.final_elo|int }}</td>
+          <td>{{ s.rank_name }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

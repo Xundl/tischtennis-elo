@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tischtennis Elo System</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background: #f5f5f5;
-    }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
     h1 { color: #222; }
     form { margin-bottom: 20px; }
     input { margin: 5px; padding: 5px; }
@@ -17,11 +13,11 @@
     ul { list-style: none; padding: 0; }
     li { background: white; margin: 5px 0; padding: 10px; border-radius: 8px; }
 
-    /* Rank-Farben */
     li.papier, tr.papier { background: #e0e0e0; color: #222; }
     li.plastik, tr.plastik { background: #d0f0ff; color: #004466; }
     li.holz, tr.holz { background: #deb887; color: #4b2e05; }
     li.metall, tr.metall { background: linear-gradient(90deg,#bbb,#eee); color: #222; }
+    li.unranked { background: #ddd; color: #777; font-style: italic; }
 
     li.familie, tr.familie {
       background: linear-gradient(90deg,#003300,#006600,#009933,#00cc66,#003300);
@@ -56,6 +52,20 @@
       100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(255,215,0,.3), inset 0 0 8px rgba(255,255,150,.3); }
     }
 
+    li.schlager, tr.schlager {
+      background: linear-gradient(90deg,#1a1a2e,#16213e,#0f3460,#533483,#1a1a2e);
+      background-size: 300% 300%;
+      color: #fff; font-weight: bold;
+      border: 3px solid #a855f7; border-radius: 10px;
+      text-shadow: 0 0 8px rgba(168,85,247,.9), 0 0 20px rgba(139,92,246,.7);
+      animation: schlagerPulse 4s ease-in-out infinite;
+    }
+    @keyframes schlagerPulse {
+      0%   { background-position: 0% 50%; box-shadow: 0 0 15px rgba(168,85,247,.5), inset 0 0 10px rgba(139,92,246,.3); }
+      50%  { background-position: 100% 50%; box-shadow: 0 0 30px rgba(168,85,247,1), inset 0 0 15px rgba(139,92,246,.6); }
+      100% { background-position: 0% 50%; box-shadow: 0 0 15px rgba(168,85,247,.5), inset 0 0 10px rgba(139,92,246,.3); }
+    }
+
     table {
       border-collapse: separate; border-spacing: 0;
       width: 100%; border-radius: 10px;
@@ -71,7 +81,6 @@
     a { color: inherit; text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    /* Tab-Navigation */
     .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
     .tab {
       padding: 10px 24px; border-radius: 8px 8px 0 0;
@@ -96,7 +105,6 @@
 </head>
 <body>
 
-  <!-- Tab-Navigation -->
   <div class="tabs">
     <a href="/" class="tab active">🏓 Einzel</a>
     <a href="/doubles" class="tab">🤝 Doppel</a>
@@ -109,7 +117,7 @@
   <h2>Spieler hinzufügen</h2>
   <form action="/add_player" method="post" id="addPlayerForm">
     <input type="text" name="name" placeholder="Spielername" required>
-    <input type="number" name="elo" id="eloField" placeholder="Start-Elo (100-1000)">
+    <input type="number" name="elo" id="eloField" placeholder="Start-Elo (100-9999)">
     <input type="password" name="admin_password" id="adminPasswordField" placeholder="Admin-Passwort" style="display:none;">
     <button type="submit">Hinzufügen</button>
   </form>
@@ -136,7 +144,7 @@
     <br>
     <select name="series_type" id="seriesType" style="margin:5px; padding:5px;">
       <option value="1">Einzelspiel</option>
-      <option value="3">Best of 3</option>
+      <option value="3" selected >Best of 3</option>
       <option value="5">Best of 5</option>
       <option value="7">Best of 7</option>
     </select>
@@ -174,7 +182,7 @@
       const isSingle = val === 1;
       const needed = isSingle ? null : Math.floor(val / 2) + 1;
       singleFields.style.display = isSingle ? "inline" : "none";
-      seriesFields.style.display = isSingle ? "none"   : "inline";
+      seriesFields.style.display = isSingle ? "none" : "inline";
       p1ScoreInput.required = p2ScoreInput.required = isSingle;
       p1WinsInput.required  = p2WinsInput.required  = !isSingle;
       if (!isSingle) {
@@ -186,12 +194,13 @@
     updateForm();
   </script>
 
+  <!-- Revert -->
   <h2>Letztes Spiel rückgängig ↩️</h2>
-<form action="/revert_game" method="post">
-  <button type="submit" style="background:#cc0000; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
-    Revert
-  </button>
-</form>
+  <form action="/revert_game" method="post">
+    <button type="submit" style="background:#cc0000; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
+      Revert
+    </button>
+  </form>
 
   <!-- Ringerl -->
   <h2>Ringerl 🏅</h2>
@@ -220,10 +229,20 @@
   <h2>Top 3 Spieler</h2>
   <ul>
     {% for p in players[:3] %}
-      {% set rank_class = p.rank_name.split(' ')[0].lower() %}
+      {% if p.rank_name.startswith('Schlager') %}
+        {% set rank_class = "schlager" %}
+      {% elif p.rank_name == "Unranked" %}
+        {% set rank_class = "unranked" %}
+      {% else %}
+        {% set rank_class = p.rank_name.split(' ')[0].lower() %}
+      {% endif %}
       <li class="{{ rank_class }}">
         <b><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></b>
-        – Elo: {{ "%.0f"|format(p.elo) }} - <span class="rank">{{ p.rank_name }}</span>
+        – Elo: {{ "%.0f"|format(p.elo) if p.is_placed() else "?" }}
+        - <span class="rank">{{ p.rank_name }}</span>
+        {% if not p.is_placed() %}
+          <span style="font-size:0.85em; color:#888;">({{ p.placements_played }}/3 Placement Matches)</span>
+        {% endif %}
         <a href="/edit_player/{{ p.id }}" style="margin-left:10px; font-size:0.9em;">EDIT</a>
       </li>
     {% endfor %}
@@ -236,6 +255,12 @@
   <a href="/history" style="display:inline-block; margin-top:5px; color:#3b2fc0; text-decoration:none; font-weight:bold;">
     Match History
   </a>
+  {% if last_season %}
+    <br><br>
+    <a href="/season/{{ last_season.number }}" style="display:inline-block; margin-top:5px; color:#8b0000; text-decoration:none; font-weight:bold;">
+      📊 Season {{ last_season.number }} Leaderboard
+    </a>
+  {% endif %}
 
   <!-- Spieler + Legende nebeneinander -->
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:40px; margin-top:30px;">
@@ -243,7 +268,11 @@
       <h3>Alle Spieler</h3>
       <ul>
         {% for p in players|sort(attribute='name') %}
-          <li><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></li>
+          <li><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a>
+            {% if not p.is_placed() %}
+              <span style="font-size:0.8em; color:#888;">({{ p.placements_played }}/3)</span>
+            {% endif %}
+          </li>
         {% endfor %}
       </ul>
     </div>
@@ -255,6 +284,10 @@
           <tr class="karl">
             <td>🏆</td>
             <td>Karl Jindraks Doppelpartner 👑</td>
+          </tr>
+          <tr class="schlager">
+            <td>1001–9999</td>
+            <td>Schlager 🏓</td>
           </tr>
           <tr class="familie">
             <td>850–1000</td>
@@ -284,6 +317,16 @@
       </table>
     </div>
   </div>
+
+  <!-- Season Reset – ganz unten -->
+  <hr style="margin-top:50px; border:none; border-top:1px solid #ccc;">
+  <h2>Season Reset 🔄</h2>
+  <form action="/season_reset" method="post" onsubmit="return confirm('⚠️ Wirklich Season Reset? Alle Matches und Doppelteams werden gelöscht!');">
+    <input type="password" name="admin_password" placeholder="Admin-Passwort" required>
+    <button type="submit" style="background:#8b0000; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
+      Season Reset
+    </button>
+  </form>
 
 </body>
 </html>

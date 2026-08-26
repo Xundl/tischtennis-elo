@@ -2,7 +2,7 @@ import re
 from flask import Flask, render_template, request, redirect, flash, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-from models import db, Player, Game, DoublesGame, DoublesTeam, Ringerl, update_elo
+from models import db, Player, Game, DoublesGame, DoublesTeam, Ringerl, Season, SeasonSnapshot, update_elo
 
 # Flask-App initialisieren
 app = Flask(__name__)
@@ -18,7 +18,7 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-# Startseite: zeigt Spieler & ihre Elo an
+# Startseite
 @app.route('/')
 def index():
     players = Player.query.order_by(Player.elo.desc()).all()
@@ -29,7 +29,8 @@ def index():
     else:
         for p in players:
             p.rank_name = p.get_rank()
-    return render_template('index.html', players=players)
+    last_season = Season.query.order_by(Season.number.desc()).first()
+    return render_template('index.html', players=players, last_season=last_season)
 
 # Spieler hinzufügen
 @app.route('/add_player', methods=['POST'])
@@ -56,10 +57,10 @@ def add_player():
         except ValueError:
             flash("UNGUELTIGER ELO-WERT!")
             return redirect("/")
-        if elo_value < 100 or elo_value > 1000:
-            flash("Elo muss zwischen 100 und 1000 liegen!")
+        if elo_value < 100 or elo_value > 9999:
+            flash("Elo muss zwischen 100 und 9999 liegen!")
             return redirect("/")
-        ADMIN_PASSWORD = "123"
+        ADMIN_PASSWORD = "123yarak"
         if admin_pw != ADMIN_PASSWORD:
             flash("FALSCHES PASSWORT! Spieler NICHT erstellt.")
             return redirect("/")
@@ -96,7 +97,6 @@ def add_game():
             flash("Unentschieden sind nicht erlaubt.", "error")
             return redirect(url_for("index"))
 
-        # Gewinner braucht mindestens 11 Punkte
         if max(p1_score, p2_score) < 11:
             flash("Ungültiges Ergebnis: Der Gewinner braucht mindestens 11 Punkte.", "error")
             return redirect(url_for("index"))
@@ -182,8 +182,75 @@ def revert_game():
     db.session.delete(last_game)
     db.session.commit()
 
-    flash(f"↩️ Letztes Spiel ({p1.name} vs {p2.name}) wurde rückgängig gemacht. Elo wiederhergestellt. (Winstreaks nicht zurückgesetzt)", "success")
+    flash(f"↩️ Letztes Spiel ({p1.name} vs {p2.name}) wurde rückgängig gemacht.", "success")
     return redirect(url_for("index"))
+
+# Season Reset
+@app.route('/season_reset', methods=['POST'])
+def season_reset():
+    ADMIN_PASSWORD = "123yarak"
+    entered_pw = request.form.get("admin_password", "").strip()
+    if entered_pw != ADMIN_PASSWORD:
+        flash("Falsches Admin-Passwort – Reset abgebrochen.", "error")
+        return redirect(url_for("index"))
+
+    last_season = Season.query.order_by(Season.number.desc()).first()
+    season_number = (last_season.number + 1) if last_season else 1
+
+    new_season = Season(number=season_number)
+    db.session.add(new_season)
+    db.session.flush()
+
+    # Snapshot speichern
+    players = Player.query.order_by(Player.elo.desc()).all()
+    for i, p in enumerate(players):
+        rank = p.get_rank(top1=(i == 0))
+        snapshot = SeasonSnapshot(
+            season_id=new_season.id,
+            player_name=p.name,
+            final_elo=p.elo,
+            rank_name=rank
+        )
+        db.session.add(snapshot)
+
+    # Start-Elo nach Tabelle
+    def get_start_elo(old_elo):
+        if old_elo >= 700:
+            return 500
+        elif old_elo >= 600:
+            return 450
+        elif old_elo >= 500:
+            return 400
+        elif old_elo >= 400:
+            return 350
+        else:
+            return 300
+
+    for p in players:
+        p.elo = get_start_elo(p.elo)
+        p.winstreak_1 = 0
+        p.winstreak_3 = 0
+        p.winstreak_5 = 0
+        p.winstreak_7 = 0
+        p.placements_played = 0
+
+    # Alles löschen
+    Game.query.delete()
+    Ringerl.query.delete()
+    DoublesGame.query.delete()
+    DoublesTeam.query.delete()
+
+    db.session.commit()
+    flash(f"✅ Season {season_number} wurde gestartet! Alle Spieler sind in Placement (3 Spiele).", "success")
+    return redirect(url_for("index"))
+
+# Season History
+@app.route('/season/<int:season_number>')
+def season_history(season_number):
+    season = Season.query.filter_by(number=season_number).first_or_404()
+    snapshots = SeasonSnapshot.query.filter_by(season_id=season.id).order_by(SeasonSnapshot.final_elo.desc()).all()
+    all_seasons = Season.query.order_by(Season.number.desc()).all()
+    return render_template('season_history.html', season=season, snapshots=snapshots, all_seasons=all_seasons)
 
 # Head to Head
 @app.route('/h2h', methods=['GET', 'POST'])
@@ -225,7 +292,7 @@ def h2h():
     return render_template('h2h.html', result=result, players=players,
                            p1_name=p1_name, p2_name=p2_name)
 
-# Vollständiges Leaderboard anzeigen
+# Vollständiges Leaderboard
 @app.route('/leaderboard')
 def leaderboard():
     players = Player.query.order_by(Player.elo.desc()).all()
@@ -240,7 +307,7 @@ def leaderboard():
 
 @app.route("/edit_player/<int:player_id>", methods=["GET", "POST"])
 def edit_player(player_id):
-    ADMIN_PASSWORD = "123"
+    ADMIN_PASSWORD = "123yarak"
     player = Player.query.get_or_404(player_id)
 
     if request.method == "POST":
@@ -260,8 +327,8 @@ def edit_player(player_id):
             flash("⚠️ Ungültiger Elo-Wert!")
             return redirect("/")
 
-        if new_elo < 100 or new_elo > 1000:
-            flash("⚠️ Elo muss zwischen 100 und 1000 liegen!")
+        if new_elo < 100 or new_elo > 9999:
+            flash("⚠️ Elo muss zwischen 100 und 9999 liegen!")
             return redirect("/")
 
         player.name = new_name
@@ -274,7 +341,7 @@ def edit_player(player_id):
 
 @app.route("/delete_player/<int:player_id>", methods=["POST"])
 def delete_player(player_id):
-    ADMIN_PASSWORD = "123"
+    ADMIN_PASSWORD = "123yarak"
     player = Player.query.get_or_404(player_id)
 
     if request.method == "POST":
@@ -299,21 +366,25 @@ def history():
 def player_profile(player_id):
     player = Player.query.get_or_404(player_id)
 
-    games = Game.query.filter(
+    all_games = Game.query.filter(
         (Game.p1_id == player.id) | (Game.p2_id == player.id)
-    ).order_by(Game.id.desc()).limit(20).all()
+    ).order_by(Game.id.desc()).all()
 
-    wins = 0
-    losses = 0
-    for g in games:
+    # Gesamtstatistik über alle Spiele
+    total_wins = total_losses = 0
+    for g in all_games:
         if (g.p1_id == player.id and g.p1_score > g.p2_score) or \
            (g.p2_id == player.id and g.p2_score > g.p1_score):
-            wins += 1
+            total_wins += 1
         else:
-            losses += 1
+            total_losses += 1
 
-    total = wins + losses
-    winrate = round((wins / total * 100), 1) if total > 0 else 0
+    total_games = total_wins + total_losses
+    winrate = round((total_wins / total_games * 100), 1) if total_games > 0 else 0
+
+    # Nur letzte 20 für die Anzeige
+    games = all_games[:20]
+
     top1 = player.elo == db.session.query(db.func.max(Player.elo)).scalar()
     rank = player.get_rank(top1=top1)
     players = {p.id: p.name for p in Player.query.all()}
@@ -323,8 +394,9 @@ def player_profile(player_id):
         player=player,
         games=games,
         players=players,
-        wins=wins,
-        losses=losses,
+        wins=total_wins,
+        losses=total_losses,
+        total_games=total_games,
         winrate=winrate,
         rank=rank,
     )
@@ -339,7 +411,7 @@ def add_ringerl():
         flash("Spieler nicht gefunden.", "error")
         return redirect(url_for('index'))
 
-    player.elo = min(1000, player.elo + 10)
+    player.elo = min(9999, player.elo + 10)
     ringerl = Ringerl(winner_id=player.id, elo_change=10, elo_after=player.elo)
     db.session.add(ringerl)
     db.session.commit()
@@ -383,10 +455,10 @@ def doubles_add_team():
         except ValueError:
             flash("UNGÜLTIGER ELO-WERT!", "error")
             return redirect('/doubles')
-        if elo_value < 100 or elo_value > 1000:
-            flash("Elo muss zwischen 100 und 1000 liegen!", "error")
+        if elo_value < 100 or elo_value > 9999:
+            flash("Elo muss zwischen 100 und 9999 liegen!", "error")
             return redirect('/doubles')
-        if admin_pw != "123":
+        if admin_pw != "123yarak":
             flash("FALSCHES PASSWORT!", "error")
             return redirect('/doubles')
 
