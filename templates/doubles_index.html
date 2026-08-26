@@ -3,25 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tischtennis Elo System</title>
+  <title>Doppel Elo System</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background: #f5f5f5;
-    }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
     h1 { color: #222; }
     form { margin-bottom: 20px; }
     input { margin: 5px; padding: 5px; }
     button { padding: 5px 10px; cursor: pointer; }
     ul { list-style: none; padding: 0; }
-    li { background: white; margin: 5px 0; padding: 10px; border-radius: 8px; }
+    li { background: white; margin: 6px 0; padding: 10px; border-radius: 8px; }
+    .rank { font-style: italic; margin-left: 4px; }
+    a { color: inherit; text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
     /* Rank-Farben */
     li.papier, tr.papier { background: #e0e0e0; color: #222; }
     li.plastik, tr.plastik { background: #d0f0ff; color: #004466; }
     li.holz, tr.holz { background: #deb887; color: #4b2e05; }
     li.metall, tr.metall { background: linear-gradient(90deg,#bbb,#eee); color: #222; }
+
+    li.pfarrer, tr.pfarrer {
+      background: linear-gradient(90deg,red,orange,yellow,green,blue,indigo,violet);
+      color: white; font-weight: bold; text-shadow: 1px 1px 2px black;
+    }
 
     li.familie, tr.familie {
       background: linear-gradient(90deg,#003300,#006600,#009933,#00cc66,#003300);
@@ -35,11 +39,6 @@
       0%   { background-position: 0% 50%; box-shadow: 0 0 10px rgba(0,200,100,.4), inset 0 0 6px rgba(0,255,150,.3); }
       50%  { background-position: 100% 50%; box-shadow: 0 0 20px rgba(0,255,128,.9), inset 0 0 10px rgba(0,255,180,.6); }
       100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(0,200,100,.4), inset 0 0 6px rgba(0,255,150,.3); }
-    }
-
-    li.pfarrer, tr.pfarrer {
-      background: linear-gradient(90deg,red,orange,yellow,green,blue,indigo,violet);
-      color: white; font-weight: bold; text-shadow: 1px 1px 2px black;
     }
 
     li.karl, tr.karl {
@@ -56,6 +55,7 @@
       100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(255,215,0,.3), inset 0 0 8px rgba(255,255,150,.3); }
     }
 
+    /* Tabelle */
     table {
       border-collapse: separate; border-spacing: 0;
       width: 100%; border-radius: 10px;
@@ -65,11 +65,6 @@
       background: transparent !important;
       border: none; padding: 8px; box-shadow: none !important;
     }
-
-    li { margin: 6px 0; padding: 10px; border-radius: 8px; }
-    .rank { font-style: italic; margin-left: 4px; }
-    a { color: inherit; text-decoration: none; }
-    a:hover { text-decoration: underline; }
 
     /* Tab-Navigation */
     .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
@@ -98,17 +93,16 @@
 
   <!-- Tab-Navigation -->
   <div class="tabs">
-    <a href="/" class="tab active">🏓 Einzel</a>
-    <a href="/doubles" class="tab">🤝 Doppel</a>
-    <a href="/h2h" class="tab">⚔️ HEAD-2-HEAD</a>
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab active">🤝 Doppel</a>
   </div>
 
-  <h1>Tischtennis Elo Ranking</h1>
+  <h1>Doppel Elo Ranking</h1>
 
-  <!-- Spieler hinzufügen -->
-  <h2>Spieler hinzufügen</h2>
-  <form action="/add_player" method="post" id="addPlayerForm">
-    <input type="text" name="name" placeholder="Spielername" required>
+  <!-- Team hinzufügen -->
+  <h2>Team hinzufügen</h2>
+  <form action="/doubles/add_team" method="post">
+    <input type="text" name="name" placeholder="Teamname (z.B. Max & Anna)" required>
     <input type="number" name="elo" id="eloField" placeholder="Start-Elo (100-1000)">
     <input type="password" name="admin_password" id="adminPasswordField" placeholder="Admin-Passwort" style="display:none;">
     <button type="submit">Hinzufügen</button>
@@ -117,22 +111,18 @@
     const eloInput = document.getElementById("eloField");
     const pwInput  = document.getElementById("adminPasswordField");
     eloInput.addEventListener("input", () => {
-      if (eloInput.value.trim() !== "") {
-        pwInput.style.display = "inline-block";
-        pwInput.required = true;
-      } else {
-        pwInput.style.display = "none";
-        pwInput.required = false;
-        pwInput.value = "";
-      }
+      const show = eloInput.value.trim() !== "";
+      pwInput.style.display = show ? "inline-block" : "none";
+      pwInput.required = show;
+      if (!show) pwInput.value = "";
     });
   </script>
 
   <!-- Spiel eintragen -->
   <h2>Spiel eintragen</h2>
-  <form action="/add_game" method="post" id="gameForm">
-    <input list="players" type="text" name="p1_name" placeholder="Spieler 1" required>
-    <input list="players" type="text" name="p2_name" placeholder="Spieler 2" required>
+  <form action="/doubles/add_game" method="post" id="gameForm">
+    <input list="teams" type="text" name="t1_name" placeholder="Team 1" required>
+    <input list="teams" type="text" name="t2_name" placeholder="Team 2" required>
     <br>
     <select name="series_type" id="seriesType" style="margin:5px; padding:5px;">
       <option value="1">Einzelspiel</option>
@@ -142,108 +132,84 @@
     </select>
     <br>
     <div id="singleFields">
-      <input type="number" name="p1_score" placeholder="Punkte Spieler 1" min="0">
-      <input type="number" name="p2_score" placeholder="Punkte Spieler 2" min="0">
+      <input type="number" name="t1_score" placeholder="Punkte Team 1" min="0">
+      <input type="number" name="t2_score" placeholder="Punkte Team 2" min="0">
     </div>
     <div id="seriesFields" style="display:none;">
-      <input type="number" name="p1_wins" id="p1Wins" placeholder="Siege Spieler 1" min="0">
-      <input type="number" name="p2_wins" id="p2Wins" placeholder="Siege Spieler 2" min="0">
+      <input type="number" name="t1_wins" id="t1Wins" placeholder="Siege Team 1" min="0">
+      <input type="number" name="t2_wins" id="t2Wins" placeholder="Siege Team 2" min="0">
       <small id="seriesHint" style="color:#666; margin-left:5px;"></small>
     </div>
     <button type="submit">Eintragen</button>
   </form>
 
-  <datalist id="players">
-    {% for p in players|sort(attribute='name') %}
-      <option value="{{ p.name }}">
+  <datalist id="teams">
+    {% for t in teams|sort(attribute='name') %}
+      <option value="{{ t.name }}">
     {% endfor %}
   </datalist>
 
   <script>
-    const seriesSelect = document.getElementById("seriesType");
-    const singleFields = document.getElementById("singleFields");
-    const seriesFields = document.getElementById("seriesFields");
-    const seriesHint   = document.getElementById("seriesHint");
-    const p1ScoreInput = singleFields.querySelector('[name="p1_score"]');
-    const p2ScoreInput = singleFields.querySelector('[name="p2_score"]');
-    const p1WinsInput  = document.getElementById("p1Wins");
-    const p2WinsInput  = document.getElementById("p2Wins");
-
+    const sel  = document.getElementById("seriesType");
+    const sf   = document.getElementById("singleFields");
+    const df   = document.getElementById("seriesFields");
+    const hint = document.getElementById("seriesHint");
+    const t1s  = sf.querySelector('[name="t1_score"]');
+    const t2s  = sf.querySelector('[name="t2_score"]');
+    const t1w  = document.getElementById("t1Wins");
+    const t2w  = document.getElementById("t2Wins");
     function updateForm() {
-      const val = parseInt(seriesSelect.value);
-      const isSingle = val === 1;
-      const needed = isSingle ? null : Math.floor(val / 2) + 1;
-      singleFields.style.display = isSingle ? "inline" : "none";
-      seriesFields.style.display = isSingle ? "none"   : "inline";
-      p1ScoreInput.required = p2ScoreInput.required = isSingle;
-      p1WinsInput.required  = p2WinsInput.required  = !isSingle;
-      if (!isSingle) {
-        p1WinsInput.max = p2WinsInput.max = needed;
-        seriesHint.textContent = `(Sieger braucht ${needed} Wins)`;
-      }
+      const v = parseInt(sel.value), single = v === 1;
+      const needed = single ? null : Math.floor(v / 2) + 1;
+      sf.style.display = single ? "inline" : "none";
+      df.style.display = single ? "none"   : "inline";
+      t1s.required = t2s.required = single;
+      t1w.required = t2w.required = !single;
+      if (!single) { t1w.max = t2w.max = needed; hint.textContent = `(Sieger braucht ${needed} Wins)`; }
     }
-    seriesSelect.addEventListener("change", updateForm);
+    sel.addEventListener("change", updateForm);
     updateForm();
   </script>
-
-  <h2>Letztes Spiel rückgängig ↩️</h2>
-<form action="/revert_game" method="post">
-  <button type="submit" style="background:#cc0000; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
-    Revert
-  </button>
-</form>
-
-  <!-- Ringerl -->
-  <h2>Ringerl 🏅</h2>
-  <form action="/add_ringerl" method="post">
-    <input list="players" type="text" name="name" placeholder="Gewinner" required>
-    <button type="submit">+10 Elo</button>
-  </form>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, msg in messages %}
         {% if category == 'success' %}
-          <div style="margin:10px 0; padding:12px 16px; border-radius:8px; font-weight:bold; font-size:1.05em; background:#d4edda; color:#155724; border:1px solid #c3e6cb;">
-            {{ msg }}
-          </div>
+          <div style="margin:10px 0; padding:12px 16px; border-radius:8px; font-weight:bold; font-size:1.05em; background:#d4edda; color:#155724; border:1px solid #c3e6cb;">{{ msg }}</div>
         {% else %}
-          <div style="margin:10px 0; padding:12px 16px; border-radius:8px; font-weight:bold; font-size:1.05em; background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;">
-            {{ msg }}
-          </div>
+          <div style="margin:10px 0; padding:12px 16px; border-radius:8px; font-weight:bold; font-size:1.05em; background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;">{{ msg }}</div>
         {% endif %}
       {% endfor %}
     {% endif %}
   {% endwith %}
 
   <!-- Top 3 -->
-  <h2>Top 3 Spieler</h2>
+  <h2>Top 3 Teams</h2>
   <ul>
-    {% for p in players[:3] %}
-      {% set rank_class = p.rank_name.split(' ')[0].lower() %}
+    {% for t in teams[:3] %}
+      {% set rank_class = t.rank_name.split(' ')[0].lower() %}
       <li class="{{ rank_class }}">
-        <b><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></b>
-        – Elo: {{ "%.0f"|format(p.elo) }} - <span class="rank">{{ p.rank_name }}</span>
-        <a href="/edit_player/{{ p.id }}" style="margin-left:10px; font-size:0.9em;">EDIT</a>
+        <b><a href="{{ url_for('doubles_team_profile', team_id=t.id) }}">{{ t.name }}</a></b>
+        – Elo: {{ "%.0f"|format(t.elo) }} - <span class="rank">{{ t.rank_name }}</span>
       </li>
     {% endfor %}
   </ul>
 
-  <a href="/leaderboard" style="display:inline-block; margin-top:10px; color:#3b2fc0; font-weight:bold; text-decoration:none;">
+  <a href="/doubles/leaderboard" style="display:inline-block; margin-top:10px; color:#3b2fc0; font-weight:bold; text-decoration:none;">
     Vollständiges Leaderboard anzeigen
   </a>
   <br><br>
-  <a href="/history" style="display:inline-block; margin-top:5px; color:#3b2fc0; text-decoration:none; font-weight:bold;">
+  <a href="/doubles/history" style="display:inline-block; margin-top:5px; color:#3b2fc0; text-decoration:none; font-weight:bold;">
     Match History
   </a>
 
-  <!-- Spieler + Legende nebeneinander -->
+  <!-- Teams + Legende nebeneinander -->
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:40px; margin-top:30px;">
     <div style="flex:1;">
-      <h3>Alle Spieler</h3>
+      <h3>Alle Teams</h3>
       <ul>
-        {% for p in players|sort(attribute='name') %}
-          <li><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></li>
+        {% for t in teams|sort(attribute='name') %}
+          <li><a href="{{ url_for('doubles_team_profile', team_id=t.id) }}">{{ t.name }}</a></li>
         {% endfor %}
       </ul>
     </div>

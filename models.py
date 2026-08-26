@@ -6,7 +6,10 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     elo = db.Column(db.Float, default=300)
-    winstreak = db.Column(db.Integer, default=0)
+    winstreak_1 = db.Column(db.Integer, default=0)  # Einzelspiel
+    winstreak_3 = db.Column(db.Integer, default=0)  # Best of 3
+    winstreak_5 = db.Column(db.Integer, default=0)  # Best of 5
+    winstreak_7 = db.Column(db.Integer, default=0)  # Best of 7
 
     def get_rank(self, top1=False):
         if top1:
@@ -51,7 +54,7 @@ class Game(db.Model):
 
 def update_elo(winner, loser, winner_score=None, loser_score=None,
                series_type=1, series_winner_wins=None, series_loser_wins=None, k=32):
-    
+
     expected_win = 1 / (1 + 10 ** ((loser.elo - winner.elo) / 400))
 
     if series_type == 1 and winner_score is not None and loser_score is not None:
@@ -63,27 +66,86 @@ def update_elo(winner, loser, winner_score=None, loser_score=None,
     series_multipliers = {1: 1.0, 3: 1.3, 5: 1.6, 7: 2.0}
     series_mult = series_multipliers.get(series_type, 1.0)
 
-    # Basis-Delta (ohne Boni) → wird für den Verlierer verwendet
     base_delta = int(round(k * (1 - expected_win) * diff_factor * series_mult))
 
-    # Boni NUR für den Gewinner
-    sweep_bonus = 0
-    if series_type > 1 and series_loser_wins == 0:
-        sweep_bonus = {3: 5, 5: 8, 7: 12}.get(series_type, 0)
+    # Kein Bonus wenn Elo-Differenz >= 150
+    elo_diff = abs(winner.elo - loser.elo)
+    if elo_diff >= 150:
+        sweep_bonus = 0
+        winstreak_bonus = 0
+    else:
+        sweep_bonus = 0
+        if series_type > 1 and series_loser_wins == 0:
+            sweep_bonus = {3: 5, 5: 8, 7: 12}.get(series_type, 0)
 
-    winstreak_bonus = 5 if winner.winstreak >= 2 else 0
+        streak_field = f"winstreak_{series_type}"
+        current_streak = getattr(winner, streak_field, 0) or 0
+        winstreak_bonus = 5 if current_streak >= 2 else 0
 
     total_bonus = sweep_bonus + winstreak_bonus
 
-    # ✅ Gewinner: base + Boni
     winner.elo = min(1000, winner.elo + base_delta + total_bonus)
-
-    # ✅ Verlierer: nur 75% vom base_delta, KEINE Boni
     loser_delta = int(round(base_delta * 0.75))
-    loser.elo = max(100, loser.elo - loser_delta)
 
-    winner.winstreak += 1
-    loser.winstreak = 0
+    underdog_bonus = 0
+    underdog_bonus = 0
+    if series_type > 1 and series_loser_wins is not None and series_loser_wins > 0:
+        elo_tiers = int(elo_diff // 150)  # 150→1, 300→2, 450→3 ...
+        if elo_tiers >= 1:
+            underdog_bonus = series_loser_wins * 2 * elo_tiers
+
+    loser.elo = max(100, loser.elo - loser_delta + underdog_bonus)
+
+    streak_field = f"winstreak_{series_type}"
+    current_streak = getattr(winner, streak_field, 0) or 0
+    setattr(winner, streak_field, current_streak + 1)
+    setattr(loser, streak_field, 0)
 
     db.session.commit()
-    return base_delta + total_bonus, -loser_delta, total_bonus, winner.winstreak
+    return base_delta + total_bonus, -loser_delta + underdog_bonus, total_bonus, getattr(winner, streak_field)
+
+class DoublesTeam(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    elo = db.Column(db.Float, default=300)
+    winstreak = db.Column(db.Integer, default=0)
+
+    def get_rank(self, top1=False):
+        if top1:
+            return "Karl Jindraks Doppelpartner"
+        elo = max(min(self.elo, 1000), 100)
+        tiers = [
+            (100, 249, "Papier"),
+            (250, 399, "Plastik"),
+            (400, 549, "Holz"),
+            (550, 699, "Metall"),
+            (700, 849, "Pfarrer"),
+            (850, 1000, "Familie Yarak"),
+        ]
+        for low, high, name in tiers:
+            if low <= elo <= high:
+                step = (high - low) / 3
+                div = 3 if elo < low + step else (2 if elo < low + 2 * step else 1)
+                return f"{name} {div}"
+        return "Unranked"
+
+
+class DoublesGame(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    t1_id = db.Column(db.Integer, db.ForeignKey('doubles_team.id'))
+    t2_id = db.Column(db.Integer, db.ForeignKey('doubles_team.id'))
+    t1_score = db.Column(db.Integer)
+    t2_score = db.Column(db.Integer)
+    t1_change = db.Column(db.Float)
+    t2_change = db.Column(db.Float)
+    t1_elo_after = db.Column(db.Float)
+    t2_elo_after = db.Column(db.Float)
+    series_type = db.Column(db.Integer, default=1)
+    series_t1_wins = db.Column(db.Integer, nullable=True)
+    series_t2_wins = db.Column(db.Integer, nullable=True)
+
+class Ringerl(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    winner_id = db.Column(db.Integer, db.ForeignKey('player.id'))
+    elo_change = db.Column(db.Float, default=10)
+    elo_after = db.Column(db.Float)

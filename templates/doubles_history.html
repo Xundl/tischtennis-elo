@@ -3,15 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Match History</title>
+  <title>Doppel Match History</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 40px;
       background: #f5f5f5;
     }
-    h1 { color: #222; margin-bottom: 10px; }
-    a { color: #3b2fc0; text-decoration: none; font-weight: bold; }
+    h1 {
+      color: #222;
+      margin-bottom: 10px;
+    }
+    a {
+      color: #3b2fc0;
+      text-decoration: none;
+      font-weight: bold;
+    }
 
     table {
       width: 100%;
@@ -20,7 +27,7 @@
       background: white;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
     th {
@@ -36,20 +43,35 @@
       vertical-align: top;
     }
 
-    .plus  { color: #009900; font-weight: bold; margin-left: 4px; }
-    .minus { color: #cc0000; font-weight: bold; margin-left: 4px; }
-    .elo   { color: #666; font-size: 0.9em; margin-top: 2px; }
+    .plus {
+      color: #009900;
+      font-weight: bold;
+      margin-left: 4px;
+    }
+
+    .minus {
+      color: #cc0000;
+      font-weight: bold;
+      margin-left: 4px;
+    }
+
+    .elo {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 2px;
+    }
 
     /* Tab-Navigation */
     .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
     .tab {
       padding: 10px 24px; border-radius: 8px 8px 0 0;
-      font-weight: bold; font-size: 1em;
+      font-weight: bold; font-size: 1em; cursor: pointer;
       text-decoration: none; border: 2px solid #3b2fc0;
     }
     .tab.active { background: #3b2fc0; color: white; }
     .tab:not(.active) { background: white; color: #3b2fc0; }
 
+    /* --- MOBILE STYLING --- */
     @media (max-width: 768px) {
       body { margin: 15px; font-size: 16px; }
       h1, h2, h3 { font-size: 1.2em; text-align: center; }
@@ -66,51 +88,51 @@
 <body>
 
   <div class="tabs">
-    <a href="/" class="tab active">🏓 Einzel</a>
-    <a href="/doubles" class="tab">🤝 Doppel</a>
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab active">🤝 Doppel</a>
   </div>
 
-  <h1>Match History</h1>
-  <a href="/">⬅ Zurück zur Startseite</a>
+  <h1>Doppel Match History</h1>
+  <a href="/doubles">⬅ Zurück zur Doppel-Übersicht</a>
 
   <table>
     <thead>
       <tr>
-        <th>Spieler&nbsp;1</th>
-        <th>Spieler&nbsp;2</th>
+        <th>Team&nbsp;1</th>
+        <th>Team&nbsp;2</th>
         <th>Ergebnis</th>
         <th>Format</th>
       </tr>
     </thead>
     <tbody>
       {% for g in games %}
-        {% set p1_change = g.p1_change or 0 %}
-        {% set p2_change = g.p2_change or 0 %}
+        {% set t1_change = g.t1_change or 0 %}
+        {% set t2_change = g.t2_change or 0 %}
         {% set is_series = g.series_type and g.series_type > 1 %}
         <tr>
           <td>
-            <strong>{{ players[g.p1_id] }}</strong>
-            {% if p1_change != 0 %}
-              <span class="{{ 'plus' if p1_change > 0 else 'minus' }}">
-                {{ '+' if p1_change > 0 else '' }}{{ p1_change|int }}
+            <strong>{{ teams[g.t1_id] }}</strong>
+            {% if t1_change != 0 %}
+              <span class="{{ 'plus' if t1_change > 0 else 'minus' }}">
+                {{ '+' if t1_change > 0 else '' }}{{ t1_change|int }}
               </span>
             {% endif %}
-            <div class="elo">Elo nach Spiel: {{ g.p1_elo_after|int }}</div>
+            <div class="elo">Elo nach Spiel: {{ g.t1_elo_after|int }}</div>
           </td>
           <td>
-            <strong>{{ players[g.p2_id] }}</strong>
-            {% if p2_change != 0 %}
-              <span class="{{ 'plus' if p2_change > 0 else 'minus' }}">
-                {{ '+' if p2_change > 0 else '' }}{{ p2_change|int }}
+            <strong>{{ teams[g.t2_id] }}</strong>
+            {% if t2_change != 0 %}
+              <span class="{{ 'plus' if t2_change > 0 else 'minus' }}">
+                {{ '+' if t2_change > 0 else '' }}{{ t2_change|int }}
               </span>
             {% endif %}
-            <div class="elo">Elo nach Spiel: {{ g.p2_elo_after|int }}</div>
+            <div class="elo">Elo nach Spiel: {{ g.t2_elo_after|int }}</div>
           </td>
           <td>
             {% if is_series %}
-              <strong>{{ g.series_p1_wins }} : {{ g.series_p2_wins }}</strong>
+              <strong>{{ g.series_t1_wins }} : {{ g.series_t2_wins }}</strong>
             {% else %}
-              <strong>{{ g.p1_score }} : {{ g.p2_score }}</strong>
+              <strong>{{ g.t1_score }} : {{ g.t2_score }}</strong>
             {% endif %}
           </td>
           <td>
@@ -126,32 +148,5 @@
       {% endfor %}
     </tbody>
   </table>
-
-  <!-- Ringerl History -->
-  <h2 style="margin-top:40px;">Ringerl History 🏅</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Spieler</th>
-        <th>Elo gewonnen</th>
-        <th>Elo danach</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in ringerls %}
-        <tr>
-          <td><strong>{{ players[r.winner_id] }}</strong></td>
-          <td><span class="plus">+{{ r.elo_change|int }}</span></td>
-          <td class="elo">{{ r.elo_after|int }}</td>
-        </tr>
-      {% endfor %}
-      {% if not ringerls %}
-        <tr>
-          <td colspan="3" style="color:#888; font-style:italic;">Noch keine Ringerln gespielt.</td>
-        </tr>
-      {% endif %}
-    </tbody>
-  </table>
-
 </body>
 </html>

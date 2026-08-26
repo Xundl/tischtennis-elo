@@ -170,7 +170,12 @@
     <div class="stat"><b>Rank:</b> {{ rank }}</div>
     <div class="stat"><b>Win/Loss:</b> {{ wins }}W / {{ losses }}L</div>
     <div class="stat"><b>Winrate:</b> {{ winrate }}%</div>
-    <div class="stat"><b>Winstreak:</b> {{ player.winstreak }}</div>
+    <div class="stat"><b>Winstreak:</b>
+        Einzel: {{ player.winstreak_1 }} |
+        BO3: {{ player.winstreak_3 }} |
+        BO5: {{ player.winstreak_5 }} |
+        BO7: {{ player.winstreak_7 }}
+    </div>
   </div>
 
   <h2>Letzte 20 Spiele</h2>

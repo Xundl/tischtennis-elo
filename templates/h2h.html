@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Head to Head</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    h1, h2 { color: #222; }
+    a { color: #3b2fc0; text-decoration: none; font-weight: bold; }
+    a:hover { text-decoration: underline; }
+    input { margin: 5px; padding: 6px; }
+    button { padding: 6px 14px; cursor: pointer; background: #3b2fc0; color: white; border: none; border-radius: 6px; }
+
+    .h2h-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      margin: 30px 0;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .h2h-player { text-align: center; }
+    .h2h-player .wins { font-size: 3em; font-weight: bold; color: #3b2fc0; }
+    .h2h-player .name { font-size: 1.2em; font-weight: bold; }
+    .h2h-vs { font-size: 2em; color: #aaa; font-weight: bold; }
+    .h2h-total { text-align: center; color: #666; margin-bottom: 20px; }
+
+    table { width: 100%; border-collapse: collapse; background: white;
+            border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    th { background: #eee; padding: 10px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+    .plus  { color: #009900; font-weight: bold; }
+    .minus { color: #cc0000; font-weight: bold; }
+    .elo   { color: #666; font-size: 0.9em; }
+
+    /* Tab-Navigation */
+    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+    .tab {
+      padding: 10px 24px; border-radius: 8px 8px 0 0;
+      font-weight: bold; font-size: 1em;
+      text-decoration: none; border: 2px solid #3b2fc0;
+    }
+    .tab.active { background: #3b2fc0; color: white; }
+    .tab:not(.active) { background: white; color: #3b2fc0; }
+
+    @media (max-width: 768px) {
+      body { margin: 15px; }
+      .h2h-box { flex-direction: column; gap: 10px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab">🤝 Doppel</a>
+    <a href="/h2h" class="tab active">⚔️ H2H</a>
+  </div>
+
+  <h1>Head to Head ⚔️</h1>
+
+  <form method="POST">
+    <input list="players" type="text" name="p1_name" placeholder="Spieler 1" value="{{ p1_name }}" required>
+    <input list="players" type="text" name="p2_name" placeholder="Spieler 2" value="{{ p2_name }}" required>
+    <button type="submit">Vergleichen</button>
+  </form>
+
+  <datalist id="players">
+    {% for p in players %}
+      <option value="{{ p.name }}">
+    {% endfor %}
+  </datalist>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div style="margin:10px 0; padding:12px; border-radius:8px; font-weight:bold;
+          {% if category == 'success' %}background:#d4edda; color:#155724; border:1px solid #c3e6cb;
+          {% else %}background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;{% endif %}">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if result %}
+    <div class="h2h-box">
+      <div class="h2h-player">
+        <div class="name">{{ result.p1.name }}</div>
+        <div class="wins">{{ result.p1_wins }}</div>
+        <div class="elo">Elo: {{ result.p1.elo|int }}</div>
+      </div>
+      <div class="h2h-vs">VS</div>
+      <div class="h2h-player">
+        <div class="name">{{ result.p2.name }}</div>
+        <div class="wins">{{ result.p2_wins }}</div>
+        <div class="elo">Elo: {{ result.p2.elo|int }}</div>
+      </div>
+    </div>
+
+    <p class="h2h-total">{{ result.total }} Spiele insgesamt</p>
+
+    {% if result.games %}
+      <h2>Alle Spiele</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>{{ result.p1.name }}</th>
+            <th>{{ result.p2.name }}</th>
+            <th>Ergebnis</th>
+            <th>Format</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in result.games %}
+            {% set is_p1_first = g.p1_id == result.p1.id %}
+            {% set is_series = g.series_type and g.series_type > 1 %}
+
+            {% if is_series %}
+              {% set s1 = g.series_p1_wins if is_p1_first else g.series_p2_wins %}
+              {% set s2 = g.series_p2_wins if is_p1_first else g.series_p1_wins %}
+            {% else %}
+              {% set s1 = g.p1_score if is_p1_first else g.p2_score %}
+              {% set s2 = g.p2_score if is_p1_first else g.p1_score %}
+            {% endif %}
+
+            {% set c1 = g.p1_change if is_p1_first else g.p2_change %}
+            {% set c2 = g.p2_change if is_p1_first else g.p1_change %}
+            {% set e1 = g.p1_elo_after if is_p1_first else g.p2_elo_after %}
+            {% set e2 = g.p2_elo_after if is_p1_first else g.p1_elo_after %}
+
+            <tr>
+              <td>
+                <span class="{{ 'plus' if c1 > 0 else 'minus' }}">
+                  {{ '+' if c1 > 0 else '' }}{{ c1|int }}
+                </span>
+                <div class="elo">Elo danach: {{ e1|int }}</div>
+              </td>
+              <td>
+                <span class="{{ 'plus' if c2 > 0 else 'minus' }}">
+                  {{ '+' if c2 > 0 else '' }}{{ c2|int }}
+                </span>
+                <div class="elo">Elo danach: {{ e2|int }}</div>
+              </td>
+              <td><strong>{{ s1 }} : {{ s2 }}</strong></td>
+              <td>
+                {% if is_series %}
+                  <span style="background:#3b2fc0; color:white; padding:2px 7px; border-radius:5px; font-size:0.85em;">BO{{ g.series_type }}</span>
+                {% else %}
+                  <span style="color:#888; font-size:0.85em;">Single</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p style="color:#888; font-style:italic;">Diese beiden Spieler haben noch nicht gegeneinander gespielt.</p>
+    {% endif %}
+  {% endif %}
+
+</body>
+</html>

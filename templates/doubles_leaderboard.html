@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doppel Leaderboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f5f5f5;
+    }
+
+    h1 { color: #222; }
+
+    a { color: #3b2fc0; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    ul { list-style: none; padding: 0; }
+
+    li {
+      background: white;
+      margin: 6px 0;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .rank { font-style: italic; margin-left: 4px; }
+
+    li.papier  { background: #e0e0e0; color: #222; }
+    li.plastik { background: #d0f0ff; color: #004466; }
+    li.holz    { background: #deb887; color: #4b2e05; }
+    li.metall  { background: linear-gradient(90deg,#bbb,#eee); color: #222; }
+    li.pfarrer {
+      background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+      color: white;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px black;
+    }
+    li.familie {
+      background: linear-gradient(90deg,#003300,#006600,#009933,#00cc66,#003300);
+      background-size: 300% 300%;
+      color: #e6ffe6;
+      font-weight: bold;
+      border: 3px solid #00cc66;
+      border-radius: 10px;
+      text-shadow: 0 0 6px rgba(0,255,128,.8), 0 0 12px rgba(0,200,100,.6);
+      animation: shimmerGreen 5s ease-in-out infinite;
+    }
+    @keyframes shimmerGreen {
+      0%   { background-position: 0% 50%; box-shadow: 0 0 10px rgba(0,200,100,.4), inset 0 0 6px rgba(0,255,150,.3); }
+      50%  { background-position: 100% 50%; box-shadow: 0 0 20px rgba(0,255,128,.9), inset 0 0 10px rgba(0,255,180,.6); }
+      100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(0,200,100,.4), inset 0 0 6px rgba(0,255,150,.3); }
+    }
+
+    li.karl {
+      background: linear-gradient(120deg,#fff8b0,#ffd700,#fff2cc,#ffdf80,#ffd700);
+      background-size: 300% 300%;
+      color: #000;
+      font-weight: bold;
+      border: 3px solid #ffd700;
+      border-radius: 10px;
+      text-shadow: 0 0 5px rgba(255,215,0,.8), 0 0 15px rgba(255,255,150,.8);
+      animation: goldGlow 4s ease-in-out infinite;
+    }
+    @keyframes goldGlow {
+      0%   { background-position: 0% 50%; box-shadow: 0 0 10px rgba(255,215,0,.3), inset 0 0 8px rgba(255,255,150,.3); }
+      50%  { background-position: 100% 50%; box-shadow: 0 0 25px rgba(255,230,120,.8), inset 0 0 12px rgba(255,255,200,.6); }
+      100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(255,215,0,.3), inset 0 0 8px rgba(255,255,150,.3); }
+    }
+
+    a { color: inherit; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Tab-Navigation */
+    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+    .tab {
+      padding: 10px 24px; border-radius: 8px 8px 0 0;
+      font-weight: bold; font-size: 1em; cursor: pointer;
+      text-decoration: none; border: 2px solid #3b2fc0;
+    }
+    .tab.active { background: #3b2fc0; color: white; }
+    .tab:not(.active) { background: white; color: #3b2fc0; }
+
+    /* --- MOBILE STYLING --- */
+    @media (max-width: 768px) {
+      body { margin: 15px; font-size: 16px; }
+      h1, h2, h3 { font-size: 1.2em; text-align: center; }
+      form input, form button { width: 100%; margin: 5px 0; font-size: 1em; padding: 10px; }
+      ul li, table { font-size: 0.95em; }
+      table { display: block; width: 100%; overflow-x: auto; border-radius: 8px; }
+      td, th { padding: 6px; }
+      a { display: inline-block; margin-top: 8px; text-align: center; }
+      button { background-color: #3b2fc0; color: white; border: none; border-radius: 6px; }
+      button:hover { background-color: #2a1fa0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab active">🤝 Doppel</a>
+  </div>
+
+  <h1>Doppel Leaderboard</h1>
+
+  <a href="/doubles" style="display:inline-block; margin-bottom:15px;">⬅️ Zurück zur Doppel-Übersicht</a>
+
+  <ul>
+    {% for t in teams %}
+      {% set rank_class = t.rank_name.split(' ')[0].lower() %}
+      <li class="{{ rank_class }}">
+        <b><a href="{{ url_for('doubles_team_profile', team_id=t.id) }}">{{ t.name }}</a></b>
+        – Elo: {{ "%.0f"|format(t.elo) }} - <span class="rank">{{ t.rank_name }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+
+</body>
+</html>

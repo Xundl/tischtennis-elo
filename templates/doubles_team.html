@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ team.name }} – Profil</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background:#f5f5f5; }
+    h1 { color:#222; }
+    .card {
+      background:white;
+      padding:20px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      width:350px;
+      margin-bottom:30px;
+    }
+    .stat { margin:6px 0; }
+    a { color:#3b2fc0; text-decoration:none; font-weight:bold; }
+
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { padding:8px 12px; border-bottom:1px solid #ccc; text-align:left; }
+    tr:hover { background:#eaeaea; }
+
+    .plus { color:green; font-weight:bold; }
+    .minus { color:red; font-weight:bold; }
+    .elo { color:#555; font-size:0.9em; }
+
+    .rank-banner {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1.5em;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
+      margin-bottom: 20px;
+    }
+
+    .rank-banner.papier  { background: #e0e0e0; color: #222; text-shadow: none; }
+    .rank-banner.plastik { background: #d0f0ff; color: #004466; }
+    .rank-banner.holz    { background: #deb887; color: #4b2e05; }
+    .rank-banner.metall  { background: linear-gradient(90deg,#bbb,#eee); color: #222; }
+
+    .rank-banner.pfarrer {
+      background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+      color: white;
+      text-shadow: 1px 1px 2px black;
+    }
+
+    .rank-banner.familie {
+      background: linear-gradient(90deg,#003300,#006600,#009933,#00cc66,#003300);
+      background-size: 300% 300%;
+      color: #e6ffe6;
+      font-weight: bold;
+      border: 3px solid #00cc66;
+      text-shadow: 0 0 6px rgba(0,255,128,.8), 0 0 12px rgba(0,200,100,.6);
+      animation: shimmerGreen 5s ease-in-out infinite;
+    }
+
+    .rank-banner.karl {
+      background: linear-gradient(120deg,#fff8b0,#ffd700,#fff2cc,#ffdf80,#ffd700);
+      background-size: 300% 300%;
+      color: #000;
+      font-weight: bold;
+      border: 3px solid #ffd700;
+      text-shadow: 0 0 5px rgba(255,215,0,.8), 0 0 15px rgba(255,255,150,.8);
+      animation: goldGlow 4s ease-in-out infinite;
+    }
+
+    @keyframes shimmerGreen {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes goldGlow {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Tab-Navigation */
+    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+    .tab {
+      padding: 10px 24px; border-radius: 8px 8px 0 0;
+      font-weight: bold; font-size: 1em; cursor: pointer;
+      text-decoration: none; border: 2px solid #3b2fc0;
+    }
+    .tab.active { background: #3b2fc0; color: white; }
+    .tab:not(.active) { background: white; color: #3b2fc0; }
+
+    /* --- MOBILE STYLING --- */
+    @media (max-width: 768px) {
+      body { margin: 15px; font-size: 16px; }
+      h1, h2, h3 { font-size: 1.2em; text-align: center; }
+      form input, form button { width: 100%; margin: 5px 0; font-size: 1em; padding: 10px; }
+      ul li, table { font-size: 0.95em; }
+      table { display: block; width: 100%; overflow-x: auto; border-radius: 8px; }
+      td, th { padding: 6px; }
+      a { display: inline-block; margin-top: 8px; text-align: center; }
+      button { background-color: #3b2fc0; color: white; border: none; border-radius: 6px; }
+      button:hover { background-color: #2a1fa0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab active">🤝 Doppel</a>
+  </div>
+
+  <a href="/doubles">⬅ Zurück</a>
+
+  {% set rank_class = rank.split(' ')[0].lower() %}
+  <h1>
+    <span class="rank-banner {{ rank_class }}">{{ team.name }}</span>
+  </h1>
+
+  <div class="card">
+    <div class="stat"><b>Elo:</b> {{ "%.0f"|format(team.elo) }}</div>
+    <div class="stat"><b>Rank:</b> {{ rank }}</div>
+    <div class="stat"><b>Win/Loss:</b> {{ wins }}W / {{ losses }}L</div>
+    <div class="stat"><b>Winrate:</b> {{ winrate }}%</div>
+    <div class="stat"><b>Winstreak:</b> {{ team.winstreak }}</div>
+  </div>
+
+  <h2>Letzte 20 Spiele</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>Gegner</th>
+        <th>Ergebnis</th>
+        <th>Format</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in games %}
+        {% set is_t1 = g.t1_id == team.id %}
+        {% set is_series = g.series_type and g.series_type > 1 %}
+
+        {% if is_series %}
+          {% set my_score  = g.series_t1_wins if is_t1 else g.series_t2_wins %}
+          {% set opp_score = g.series_t2_wins if is_t1 else g.series_t1_wins %}
+        {% else %}
+          {% set my_score  = g.t1_score if is_t1 else g.t2_score %}
+          {% set opp_score = g.t2_score if is_t1 else g.t1_score %}
+        {% endif %}
+
+        {% set opp_id    = g.t2_id if is_t1 else g.t1_id %}
+        {% set my_change = g.t1_change if is_t1 else g.t2_change %}
+        {% set my_elo    = g.t1_elo_after if is_t1 else g.t2_elo_after %}
+        {% set opp_change = g.t2_change if is_t1 else g.t1_change %}
+        {% set opp_elo   = g.t2_elo_after if is_t1 else g.t1_elo_after %}
+
+        <tr>
+          <td>
+            {{ team.name }}
+            <span class="{{ 'plus' if my_change > 0 else 'minus' }}">
+              ({{ '+' if my_change > 0 else '' }}{{ my_change|int }})
+            </span>
+            <div class="elo">Elo nach Spiel: {{ my_elo|int }}</div>
+          </td>
+          <td>
+            <a href="{{ url_for('doubles_team_profile', team_id=opp_id) }}">{{ teams[opp_id] }}</a>
+            <span class="{{ 'plus' if opp_change > 0 else 'minus' }}">
+              ({{ '+' if opp_change > 0 else '' }}{{ opp_change|int }})
+            </span>
+            <div class="elo">Elo nach Spiel: {{ opp_elo|int }}</div>
+          </td>
+          <td>{{ my_score }} : {{ opp_score }}</td>
+          <td>
+            {% if is_series %}
+              <span style="background:#3b2fc0; color:white; padding:2px 7px; border-radius:5px; font-size:0.85em;">
+                BO{{ g.series_type }}
+              </span>
+            {% else %}
+              <span style="color:#888; font-size:0.85em;">Single</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>
