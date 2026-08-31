@@ -76,7 +76,7 @@ def update_elo(winner, loser, winner_score=None, loser_score=None,
 
     # Placement: doppelter K-Wert wenn noch nicht placed
     if not winner.is_placed() or not loser.is_placed():
-        k = 64
+        k = 48
 
     expected_win = 1 / (1 + 10 ** ((loser.elo - winner.elo) / 400))
 
