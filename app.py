@@ -1,4 +1,6 @@
 import re
+import atexit
+from datetime import date
 from flask import Flask, render_template, request, redirect, flash, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -18,19 +20,58 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+# ─── INACTIVITY SYSTEM ────────────────────────────────────
+
+def run_daily_counter():
+    """Beim App-Start: Counter +1 für alle die heute noch kein Match gespielt haben."""
+    with app.app_context():
+        today = date.today()
+        players = Player.query.all()
+        for p in players:
+            last = p.last_active_date
+            # Nur hochzählen wenn heute noch kein Match gespielt wurde
+            if last is None or last < today:
+                p.inactive_counter = (p.inactive_counter or 0) + 1
+                if p.inactive_counter >= 7:
+                    p.is_inactive = True
+        db.session.commit()
+
+def run_shutdown_decay():
+    """Beim App-Shutdown: Inactive Spieler verlieren 5 Elo (min. 275)."""
+    with app.app_context():
+        players = Player.query.filter_by(is_inactive=True).all()
+        for p in players:
+            if p.elo > 275:
+                p.elo = max(275, p.elo - 5)
+        db.session.commit()
+
+# Beim Start Counter erhöhen
+run_daily_counter()
+
+# Beim Beenden Decay ausführen
+atexit.register(run_shutdown_decay)
+
+# ─── ROUTEN ───────────────────────────────────────────────
+
 # Startseite
 @app.route('/')
 def index():
-    players = Player.query.order_by(Player.elo.desc()).all()
+    # Nur aktive Spieler im Leaderboard
+    players = Player.query.filter_by(is_inactive=False).order_by(Player.elo.desc()).all()
     if players:
         players[0].rank_name = players[0].get_rank(top1=True)
         for p in players[1:]:
             p.rank_name = p.get_rank()
-    else:
-        for p in players:
-            p.rank_name = p.get_rank()
     last_season = Season.query.order_by(Season.number.desc()).first()
     return render_template('index.html', players=players, last_season=last_season)
+
+# Inactive Spieler
+@app.route('/inactive')
+def inactive_players():
+    players = Player.query.filter_by(is_inactive=True).order_by(Player.elo.desc()).all()
+    for p in players:
+        p.rank_name = p.get_rank()
+    return render_template('inactive.html', players=players)
 
 # Spieler hinzufügen
 @app.route('/add_player', methods=['POST'])
@@ -65,7 +106,7 @@ def add_player():
             flash("FALSCHES PASSWORT! Spieler NICHT erstellt.")
             return redirect("/")
 
-    new_player = Player(name=name, elo=elo_value)
+    new_player = Player(name=name, elo=elo_value, last_active_date=date.today())
     db.session.add(new_player)
     db.session.commit()
     flash(f"✅ Spieler '{name}' wurde hinzugefügt")
@@ -201,7 +242,6 @@ def season_reset():
     db.session.add(new_season)
     db.session.flush()
 
-    # Snapshot speichern
     players = Player.query.order_by(Player.elo.desc()).all()
     for i, p in enumerate(players):
         rank = p.get_rank(top1=(i == 0))
@@ -213,7 +253,6 @@ def season_reset():
         )
         db.session.add(snapshot)
 
-    # Start-Elo nach Tabelle
     def get_start_elo(old_elo):
         if old_elo >= 700:
             return 500
@@ -233,8 +272,10 @@ def season_reset():
         p.winstreak_5 = 0
         p.winstreak_7 = 0
         p.placements_played = 0
+        p.inactive_counter = 0
+        p.is_inactive = False
+        p.last_active_date = date.today()
 
-    # Alles löschen
     Game.query.delete()
     Ringerl.query.delete()
     DoublesGame.query.delete()
@@ -295,13 +336,10 @@ def h2h():
 # Vollständiges Leaderboard
 @app.route('/leaderboard')
 def leaderboard():
-    players = Player.query.order_by(Player.elo.desc()).all()
+    players = Player.query.filter_by(is_inactive=False).order_by(Player.elo.desc()).all()
     if players:
         players[0].rank_name = players[0].get_rank(top1=True)
         for p in players[1:]:
-            p.rank_name = p.get_rank()
-    else:
-        for p in players:
             p.rank_name = p.get_rank()
     return render_template('leaderboard.html', players=players)
 
@@ -370,7 +408,6 @@ def player_profile(player_id):
         (Game.p1_id == player.id) | (Game.p2_id == player.id)
     ).order_by(Game.id.desc()).all()
 
-    # Gesamtstatistik über alle Spiele
     total_wins = total_losses = 0
     for g in all_games:
         if (g.p1_id == player.id and g.p1_score > g.p2_score) or \
@@ -381,8 +418,6 @@ def player_profile(player_id):
 
     total_games = total_wins + total_losses
     winrate = round((total_wins / total_games * 100), 1) if total_games > 0 else 0
-
-    # Nur letzte 20 für die Anzeige
     games = all_games[:20]
 
     top1 = player.elo == db.session.query(db.func.max(Player.elo)).scalar()

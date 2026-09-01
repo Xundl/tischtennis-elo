@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, date
 
 db = SQLAlchemy()
 
@@ -24,6 +24,9 @@ class Player(db.Model):
     winstreak_5 = db.Column(db.Integer, default=0)
     winstreak_7 = db.Column(db.Integer, default=0)
     placements_played = db.Column(db.Integer, default=0)
+    inactive_counter = db.Column(db.Integer, default=0)
+    is_inactive = db.Column(db.Boolean, default=False)
+    last_active_date = db.Column(db.Date, default=date.today)
 
     def is_placed(self):
         return self.placements_played >= 3
@@ -32,7 +35,6 @@ class Player(db.Model):
         if not self.is_placed():
             return "Unranked"
 
-        # Schlager: über 1000
         if self.elo > 1000:
             if top1:
                 return "Schlager 🏓 | Karl Jindraks Doppelpartner 👑"
@@ -74,7 +76,6 @@ class Game(db.Model):
 def update_elo(winner, loser, winner_score=None, loser_score=None,
                series_type=1, series_winner_wins=None, series_loser_wins=None, k=32):
 
-    # Placement: doppelter K-Wert wenn noch nicht placed
     if not winner.is_placed() or not loser.is_placed():
         k = 48
 
@@ -106,7 +107,6 @@ def update_elo(winner, loser, winner_score=None, loser_score=None,
 
     total_bonus = sweep_bonus + winstreak_bonus
 
-    # Elo-Cap auf 9999 (Schlager Rang)
     winner.elo = min(9999, winner.elo + base_delta + total_bonus)
     loser_delta = int(round(base_delta * 0.75))
 
@@ -118,11 +118,16 @@ def update_elo(winner, loser, winner_score=None, loser_score=None,
 
     loser.elo = max(100, loser.elo - loser_delta + underdog_bonus)
 
-    # Placements hochzählen
     if winner.placements_played < 3:
         winner.placements_played += 1
     if loser.placements_played < 3:
         loser.placements_played += 1
+
+    # Reaktivierung bei Match
+    for player in [winner, loser]:
+        player.inactive_counter = 0
+        player.is_inactive = False
+        player.last_active_date = date.today()
 
     streak_field = f"winstreak_{series_type}"
     current_streak = getattr(winner, streak_field, 0) or 0

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inactive Spieler</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    h1 { color: #222; }
+    a { color: #3b2fc0; text-decoration: none; font-weight: bold; }
+    a:hover { text-decoration: underline; }
+    ul { list-style: none; padding: 0; }
+    li { background: #e8e8e8; margin: 6px 0; padding: 10px; border-radius: 8px; color: #555; border-left: 4px solid #aaa; }
+    .rank { font-style: italic; margin-left: 4px; }
+
+    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+    .tab {
+      padding: 10px 24px; border-radius: 8px 8px 0 0;
+      font-weight: bold; font-size: 1em;
+      text-decoration: none; border: 2px solid #3b2fc0;
+    }
+    .tab.active { background: #3b2fc0; color: white; }
+    .tab:not(.active) { background: white; color: #3b2fc0; }
+
+    .empty { color: #888; font-style: italic; margin-top: 20px; }
+
+    @media (max-width: 768px) {
+      body { margin: 15px; font-size: 16px; }
+      h1, h2 { font-size: 1.2em; text-align: center; }
+      ul li { font-size: 0.95em; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <a href="/" class="tab">🏓 Einzel</a>
+    <a href="/doubles" class="tab">🤝 Doppel</a>
+    <a href="/h2h" class="tab">⚔️ H2H</a>
+    <a href="/inactive" class="tab active">💤 Inactive</a>
+  </div>
+
+  <h1>💤 Inactive Spieler</h1>
+  <p style="color:#666;">Spieler die 7 oder mehr Tage kein Match gespielt haben. Sie verlieren 5 Elo beim App-Neustart (Minimum: 275). Ein neues Match reaktiviert sie sofort.</p>
+
+  <a href="/">⬅ Zurück zur Startseite</a>
+
+  {% if players %}
+    <ul style="margin-top:20px;">
+      {% for p in players %}
+        <li>
+          <b><a href="{{ url_for('player_profile', player_id=p.id) }}">{{ p.name }}</a></b>
+          – Elo: {{ "%.0f"|format(p.elo) }}
+          - <span class="rank">{{ p.rank_name }}</span>
+          <span style="font-size:0.85em; color:#999; margin-left:8px;">
+            ({{ p.inactive_counter }} Tage inaktiv)
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">Keine inaktiven Spieler – alle sind aktiv! 🎉</p>
+  {% endif %}
+
+</body>
+</html>
